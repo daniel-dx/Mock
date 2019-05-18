@@ -288,16 +288,17 @@ Util.extend(MockXMLHttpRequest.prototype, {
             that.status = 200
             that.statusText = HTTP_STATUS_CODES[200]
 
-            // fix #92 #93 by @qddegtya
-            that.response = that.responseText = JSON.stringify(
-                convert(that.custom.template, that.custom.options),
-                null, 4
-            )
+            convert(that.custom.template, that.custom.options).then(res => {
+                that.response = that.responseText = JSON.stringify(
+                    res,
+                    null, 4
+                )
 
-            that.readyState = MockXMLHttpRequest.DONE
-            that.dispatchEvent(new Event('readystatechange' /*, false, false, that*/ ))
-            that.dispatchEvent(new Event('load' /*, false, false, that*/ ));
-            that.dispatchEvent(new Event('loadend' /*, false, false, that*/ ));
+                that.readyState = MockXMLHttpRequest.DONE
+                that.dispatchEvent(new Event('readystatechange' /*, false, false, that*/ ))
+                that.dispatchEvent(new Event('load' /*, false, false, that*/ ));
+                that.dispatchEvent(new Event('loadend' /*, false, false, that*/ ));
+            })
         }
     },
     // https://xhr.spec.whatwg.org/#the-abort()-method
@@ -435,8 +436,18 @@ function find(options) {
 
 // 数据模板 ＝> 响应数据
 function convert(item, options) {
-    return Util.isFunction(item.template) ?
-        item.template(options) : MockXMLHttpRequest.Mock.mock(item.template)
+    return new Promise(resolve => {
+        if (Util.isFunction(item.template)) {
+            const result = item.template(options)
+            if (result instanceof Promise) {
+                result.then(res => resolve(res))
+            } else {
+                resolve(result)
+            }
+        } else {
+            resolve(MockXMLHttpRequest.Mock.mock(item.template))
+        }
+    })
 }
 
 module.exports = MockXMLHttpRequest
